@@ -4,6 +4,6 @@ import samples as sa
 
 
 def test_checker():
-    assert su.checker(sa.grid) == False
-    assert su.checker(sa.gridSolved) == True
-    assert su.checker(sa.gridShapeErr) == False
+    assert su.Suctocude.checker(su, sa.grid) == False
+    assert su.Suctocude.checker(su, sa.gridSolved) == True
+    assert su.Suctocude.checker(su, sa.gridShapeErr) == False
