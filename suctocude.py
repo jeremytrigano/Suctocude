@@ -20,7 +20,7 @@ class Suctocude(Frame):
         self.helv36b = tkFont.Font(family='Helvetica', size=36, weight='bold')
         self.helv18 = tkFont.Font(family='Helvetica', size=18)
 
-        self.gridCurr = sa.gridSolved
+        self.gridCurr = sa.gridOneLeft
         self.cbmParentState = False
         self.cbmPopUpState = False
 
@@ -182,8 +182,11 @@ class Suctocude(Frame):
             self.cbMultiPopUp.deselect()
             self.cbMultiParent.deselect()
 
-    def checker(self):
-        gridToCheck = copy.deepcopy(self.gridCurr)
+    def checker(self, *args):
+        if len(args) > 0:
+            gridToCheck = args[0]
+        else:
+            gridToCheck = copy.deepcopy(self.gridCurr)
         # check shape and one number per cell
         if len(gridToCheck) != 9:
             return False
