@@ -1,7 +1,7 @@
-import numpy as np
 from tkinter import *
 import tkinter.font as tkFont
 import samples as sa
+import copy
 
 
 class Suctocude(Frame):
@@ -20,7 +20,9 @@ class Suctocude(Frame):
         self.helv36b = tkFont.Font(family='Helvetica', size=36, weight='bold')
         self.helv18 = tkFont.Font(family='Helvetica', size=18)
 
-        self.gridCurr = sa.gridMulti
+        self.gridCurr = sa.gridSolved
+        self.cbmParentState = False
+        self.cbmPopUpState = False
 
         # adding 90 to fixed numbers
         for row in range(len(self.gridCurr)):
@@ -29,8 +31,13 @@ class Suctocude(Frame):
                     self.gridCurr[row][col][0] = self.gridCurr[row][col][0]+90
 
         btnCheck = Button(self.parent, text="Check",
-                          command=lambda grid=self.gridCurr: self.checkerResponse(grid))
-        btnCheck.pack()
+                          command=self.checkerResponse)
+        btnCheck.grid(row=0, column=0)
+        btnSolver = Button(self.parent, text="Solve", command=self.solver)
+        btnSolver.grid(row=0, column=1)
+        self.cbMultiParent = Checkbutton(self.parent, text="Multi",
+                                         command=self.checkMultiParent)
+        self.cbMultiParent.grid(row=0, column=2)
 
         self.initGrid()
 
@@ -42,7 +49,7 @@ class Suctocude(Frame):
     def initGrid(self):
         self.can = Canvas(self.parent, height=self.canH, width=self.canW, bg='white',
                           borderwidth=0, highlightthickness=0)
-        self.can.pack()
+        self.can.grid(row=1, column=0, columnspan=3)
         self.can.bind("<Button-1>", self.cellClicked)
 
         for k in range(10):
@@ -113,53 +120,92 @@ class Suctocude(Frame):
             if isinstance(w, Toplevel):
                 w.destroy()
         self.popup = Toplevel(self.parent, cursor="hand2")
+        self.popup.wm_attributes('-alpha', 0.9)
         self.popup.resizable(0, 0)
         self.popup.overrideredirect(True)
         # set popup "5" position on cursor position
         self.popup.geometry(
             f'+{self.parent.winfo_x()+x-20}+{self.parent.winfo_y()+y-10}')
         for i in range(1, 10):
-            if self.gridCurr[yk][xk] == i:
+            if i in self.gridCurr[yk][xk]:
                 btnNumber = Button(
                     self.popup, text=i, relief=SUNKEN,
-                    command=lambda t=i: self.cellFill(xk, yk, t))
+                    command=lambda t=i: self.cellFill(xk, yk, t, x, y))
             else:
                 btnNumber = Button(
                     self.popup, text=i,
-                    command=lambda t=i: self.cellFill(xk, yk, t))
+                    command=lambda t=i: self.cellFill(xk, yk, t, x, y))
             btnNumber.grid(row=(i-1) // 3, column=(i-1) % 3)
-        cbMulti = Checkbutton(self.popup, text="M")
-        cbMulti.grid(row=3, column=0, columnspan=2)
-        btnX = Button(self.popup, text="X", command=self.popup.destroy)
-        btnX.grid(row=3, column=2)
+        self.cbMultiPopUp = Checkbutton(self.popup, text="M",
+                                        command=self.checkMultiPopUp)
+        if self.cbmParentState:
+            self.cbMultiPopUp.select()
+        else:
+            self.cbMultiPopUp.deselect()
+        self.cbMultiPopUp.grid(row=3, column=0, columnspan=2)
+        btnTick = Button(self.popup, text="✓", command=self.popup.destroy)
+        btnTick.grid(row=3, column=2)
 
-    def cellFill(self, cellCol, cellRow, num):
+    def cellFill(self, cellCol, cellRow, num, x, y):
         self.gridCurr[cellRow][cellCol] = [
             value for value in self.gridCurr[cellRow][cellCol] if value != 0]
         if num in self.gridCurr[cellRow][cellCol]:
             self.gridCurr[cellRow][cellCol] = [
                 value for value in self.gridCurr[cellRow][cellCol] if value != num]
+            if len(self.gridCurr[cellRow][cellCol]) == 0:
+                self.gridCurr[cellRow][cellCol].append(0)
         else:
             self.gridCurr[cellRow][cellCol].append(num)
         self.can.destroy()
-        self.popup.destroy()
+        if self.cbmPopUpState or self.cbmParentState:
+            self.popup.destroy()
+            self.initPopUp(x, y, cellCol, cellRow)
+        else:
+            self.popup.destroy()
         self.initGrid()
 
-    def checker(self, pgrid):
-        gridToCheck = pgrid.copy()
-        # reset to -90 fixed numbers
+    def checkMultiParent(self):
+        self.cbmParentState = not self.cbmParentState
+        self.cbmPopUpState = self.cbmParentState
+        if self.cbmParentState:
+            self.cbMultiParent.select()
+        else:
+            self.cbMultiParent.deselect()
+
+    def checkMultiPopUp(self):
+        self.cbmPopUpState = not self.cbmPopUpState
+        self.cbmParentState = self.cbmPopUpState
+        if self.cbmPopUpState:
+            self.cbMultiPopUp.select()
+            self.cbMultiParent.select()
+        else:
+            self.cbMultiPopUp.deselect()
+            self.cbMultiParent.deselect()
+
+    def checker(self):
+        gridToCheck = copy.deepcopy(self.gridCurr)
+        # check shape and one number per cell
+        if len(gridToCheck) != 9:
+            return False
+        for row in range(len(gridToCheck)):
+            if len(gridToCheck[row]) != 9:
+                return False
         for row in range(len(gridToCheck)):
             for col in range(len(gridToCheck[row])):
-                if gridToCheck[row, col] > 90:
-                    gridToCheck[row, col] = gridToCheck[row, col]-90
-        # check shape and one number per cell
-        if gridToCheck.shape != (9, 9, 1):
-            return False
+                if len(gridToCheck[row][col]) != 1:
+                    return False
         # check 0 presence
         for row in range(len(gridToCheck)):
             for col in range(len(gridToCheck[row])):
                 if gridToCheck[row][col][0] == 0:
                     return False
+                if len(gridToCheck[row][col]) > 1:
+                    return False
+        # reset to -90 fixed numbers
+        for row in range(len(gridToCheck)):
+            for col in range(len(gridToCheck[row])):
+                if gridToCheck[row][col][0] > 90:
+                    gridToCheck[row][col][0] = gridToCheck[row][col][0] - 90
         # check lines
         listNum = []
         for row in range(len(gridToCheck)):
@@ -191,8 +237,8 @@ class Suctocude(Frame):
                                            [col+3*linesquare][0])
         return True
 
-    def checkerResponse(self, pgrid):
-        if self.checker(pgrid):
+    def checkerResponse(self):
+        if self.checker():
             title = "Correct !"
             txt1 = "Félicitations !"
             txt2 = "Grille terminée"
@@ -219,7 +265,35 @@ class Suctocude(Frame):
                 2 - self.popup.winfo_width()//2)
         y = int(self.parent.winfo_y() + self.canH //
                 2 - self.popup.winfo_height()//2)
-        print(self.parent.winfo_x(), self.canW, self.popup.winfo_width())
+
+        self.popup.geometry(f"+{x}+{y}")
+
+    def solver(self):
+        title = "Résolution..."
+        txt1 = "C'est parti !"
+        txt2 = "... ou pas encore,"
+        txt3 = "fais-le toi même en attendant"
+        for w in self.parent.winfo_children():
+            if isinstance(w, Toplevel):
+                w.destroy()
+        self.popup = Toplevel(self.parent)
+        self.popup.title(title)
+        self.popup.resizable(0, 0)
+
+        lMsg = Label(self.popup, text=txt1, font=self.helv18, bd=10)
+        lMsg.grid(row=0, column=0)
+        lMsg = Label(self.popup, text=txt2, font=self.helv18, bd=10)
+        lMsg.grid(row=1, column=0)
+        lMsg = Label(self.popup, text=txt3, font=self.helv18, bd=10)
+        lMsg.grid(row=2, column=0)
+        btnOK = Button(self.popup, text="OK", command=self.popup.destroy)
+        btnOK.grid(row=3, column=0)
+
+        self.popup.update()
+        x = int(self.parent.winfo_x() + self.canW //
+                2 - self.popup.winfo_width()//2)
+        y = int(self.parent.winfo_y() + self.canH //
+                2 - self.popup.winfo_height()//2)
 
         self.popup.geometry(f"+{x}+{y}")
 
