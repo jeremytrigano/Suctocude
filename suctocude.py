@@ -20,7 +20,7 @@ class Suctocude(Frame):
         self.helv36b = tkFont.Font(family='Helvetica', size=36, weight='bold')
         self.helv18 = tkFont.Font(family='Helvetica', size=18)
 
-        self.gridCurr = sa.gridOneLeft
+        self.gridCurr = sa.gridMedium
         self.cbmParentState = False
         self.cbmPopUpState = False
 
@@ -35,9 +35,11 @@ class Suctocude(Frame):
         btnCheck.grid(row=0, column=0)
         btnSolver = Button(self.parent, text="Solve", command=self.solver)
         btnSolver.grid(row=0, column=1)
+        btnReset = Button(self.parent, text="Reset", command=self.reset)
+        btnReset.grid(row=0, column=2)
         self.cbMultiParent = Checkbutton(self.parent, text="Multi",
                                          command=self.checkMultiParent)
-        self.cbMultiParent.grid(row=0, column=2)
+        self.cbMultiParent.grid(row=0, column=3)
 
         self.initGrid()
 
@@ -49,7 +51,7 @@ class Suctocude(Frame):
     def initGrid(self):
         self.can = Canvas(self.parent, height=self.canH, width=self.canW, bg='white',
                           borderwidth=0, highlightthickness=0)
-        self.can.grid(row=1, column=0, columnspan=3)
+        self.can.grid(row=1, column=0, columnspan=4)
         self.can.bind("<Button-1>", self.cellClicked)
 
         for k in range(10):
@@ -271,11 +273,61 @@ class Suctocude(Frame):
 
         self.popup.geometry(f"+{x}+{y}")
 
+    def reset(self):
+        for row in range(len(self.gridCurr)):
+            for col in range(len(self.gridCurr[row])):
+                if self.gridCurr[row][col][0] < 90:
+                    self.gridCurr[row][col] = [0]
+        self.initGrid()
+
     def solver(self):
+        flagChanges = 1
+        while flagChanges != 0:
+            flagChanges = 0
+            for row in range(len(self.gridCurr)):
+                for col in range(len(self.gridCurr[row])):
+                    if len(self.gridCurr[row][col]) > 1 or self.gridCurr[row][col][0] == 0:
+                        self.gridCurr[row][col] = []
+                        listTmp = []
+                        for colF in range(len(self.gridCurr[row])):
+                            if len(self.gridCurr[row][colF]) == 1 and self.gridCurr[row][colF][0] != 0:
+                                if self.gridCurr[row][colF][0] > 90:
+                                    listTmp.append(
+                                        self.gridCurr[row][colF][0]-90)
+                                else:
+                                    listTmp.append(self.gridCurr[row][colF][0])
+                        for rowF in range(len(self.gridCurr)):
+                            if len(self.gridCurr[rowF][col]) == 1 and self.gridCurr[rowF][col][0] != 0:
+                                if self.gridCurr[rowF][col][0] > 90:
+                                    listTmp.append(
+                                        self.gridCurr[rowF][col][0]-90)
+                                else:
+                                    listTmp.append(self.gridCurr[rowF][col][0])
+                        rowStartSqr = row // 3 * 3
+                        colStartSqr = col // 3 * 3
+                        for rowF in range(rowStartSqr, rowStartSqr+3):
+                            for colF in range(colStartSqr, colStartSqr+3):
+                                if len(self.gridCurr[rowF][colF]) == 1 and self.gridCurr[rowF][colF][0] != 0:
+                                    if self.gridCurr[rowF][colF][0] > 90:
+                                        listTmp.append(
+                                            self.gridCurr[rowF][colF][0]-90)
+                                    else:
+                                        listTmp.append(
+                                            self.gridCurr[rowF][colF][0])
+                        listTmp = list(dict.fromkeys(listTmp))
+                        for i in range(1, 10):
+                            if i not in listTmp:
+                                self.gridCurr[row][col].append(i)
+                        if len(self.gridCurr[row][col]) == 1:
+                            flagChanges = 1
+                        if len(self.gridCurr[row][col]) == 0:
+                            self.gridCurr[row][col].append(0)
+        self.initGrid()
         title = "Résolution..."
-        txt1 = "C'est parti !"
-        txt2 = "... ou pas encore,"
-        txt3 = "fais-le toi même en attendant"
+        if self.checker():
+            txt = "Résolution terminé !"
+        else:
+            txt = "Résolution impossible pour le moment..."
         for w in self.parent.winfo_children():
             if isinstance(w, Toplevel):
                 w.destroy()
@@ -283,14 +335,10 @@ class Suctocude(Frame):
         self.popup.title(title)
         self.popup.resizable(0, 0)
 
-        lMsg = Label(self.popup, text=txt1, font=self.helv18, bd=10)
+        lMsg = Label(self.popup, text=txt, font=self.helv18, bd=10)
         lMsg.grid(row=0, column=0)
-        lMsg = Label(self.popup, text=txt2, font=self.helv18, bd=10)
-        lMsg.grid(row=1, column=0)
-        lMsg = Label(self.popup, text=txt3, font=self.helv18, bd=10)
-        lMsg.grid(row=2, column=0)
         btnOK = Button(self.popup, text="OK", command=self.popup.destroy)
-        btnOK.grid(row=3, column=0)
+        btnOK.grid(row=1, column=0)
 
         self.popup.update()
         x = int(self.parent.winfo_x() + self.canW //
