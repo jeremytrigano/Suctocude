@@ -2,6 +2,7 @@ from tkinter import *
 import tkinter.font as tkFont
 import samples as sa
 import copy
+from random import *
 
 
 class Suctocude(Frame):
@@ -34,8 +35,8 @@ class Suctocude(Frame):
         btnCheck = Button(self.parent, text="Check",
                           command=self.checkerResponse)
         btnCheck.grid(row=0, column=1)
-        btnSolver = Button(self.parent, text="Solve", command=self.solver)
-        btnSolver.grid(row=0, column=2)
+        btnSolve = Button(self.parent, text="Solve", command=self.solverMsg)
+        btnSolve.grid(row=0, column=2)
         btnReset = Button(self.parent, text="Reset", command=self.reset)
         btnReset.grid(row=0, column=3)
         self.cbMultiParent = Checkbutton(self.parent, text="Multi",
@@ -51,17 +52,44 @@ class Suctocude(Frame):
         self.parent.geometry(f"+{x}+{y}")
 
     def gridSelect(self, value):
+        self.gridCurr = sa.gridEmpty
         self.reset()
-        if value == 'Easy':
-            self.gridCurr = sa.gridEasy
-        elif value == 'Medium':
-            self.gridCurr = sa.gridMedium
-        elif value == 'Hard':
-            self.gridCurr = sa.gridHard
-        else:
-            self.gridCurr = sa.gridEmpty
+        self.generateLvl(value)
         self.fixStartingNumbers()
         self.initGrid()
+
+    def generateLvl(self, level):
+        self.generate()
+        if level == 'Easy':
+            occurMin = 40
+            occurMax = 49
+        elif level == 'Medium':
+            occurMin = 50
+            occurMax = 59
+        elif level == 'Hard':
+            occurMin = 60
+            occurMax = 79
+        else:
+            occurMin = 1
+            occurMax = 0
+            self.gridCurr = sa.gridEmpty
+        i = 0
+        occur = 0
+        while occur <= occurMin and i < 81:
+            gridLeveled = copy.deepcopy(self.gridCurr)
+            listNumbered = []
+            for row in range(len(gridLeveled)):
+                for col in range(len(gridLeveled[row])):
+                    if gridLeveled[row][col] != [0]:
+                        listNumbered.append((row, col))
+            choiced = choice(listNumbered)
+            gridLeveled[choiced[0]][choiced[1]] = [0]
+            tupleSolver = self.solver(gridLeveled)
+            gridSolved = tupleSolver[0]
+            occur = tupleSolver[1]
+            if self.checker(gridSolved) and occur <= occurMax:
+                self.gridCurr = copy.deepcopy(gridLeveled)
+            i += 1
 
     def fixStartingNumbers(self):
         for row in range(len(self.gridCurr)):
@@ -213,6 +241,9 @@ class Suctocude(Frame):
             gridToCheck = args[0]
         else:
             gridToCheck = copy.deepcopy(self.gridCurr)
+        if not isinstance(gridToCheck, list):
+            self.gridCurr = sa.gridEmpty
+            return False
         # check shape and one number per cell
         if len(gridToCheck) != 9:
             return False
@@ -302,124 +333,133 @@ class Suctocude(Frame):
                     self.gridCurr[row][col] = [0]
         self.initGrid()
 
-    def solver(self):
+    def impossPossNum(self, row, col, grid):
+        listImpossibleNum = []
+        for colF in range(len(grid[row])):
+            if len(grid[row][colF]) == 1 and grid[row][colF][0] != 0 and colF != col:
+                if grid[row][colF][0] > 90:
+                    listImpossibleNum.append(
+                        grid[row][colF][0]-90)
+                else:
+                    listImpossibleNum.append(grid[row][colF][0])
+        for rowF in range(len(grid)):
+            if len(grid[rowF][col]) == 1 and grid[rowF][col][0] != 0 and rowF != row:
+                if grid[rowF][col][0] > 90:
+                    listImpossibleNum.append(
+                        grid[rowF][col][0]-90)
+                else:
+                    listImpossibleNum.append(grid[rowF][col][0])
+        rowStartSqr = row // 3 * 3
+        colStartSqr = col // 3 * 3
+        for rowF in range(rowStartSqr, rowStartSqr+3):
+            for colF in range(colStartSqr, colStartSqr+3):
+                if len(grid[rowF][colF]) == 1 and grid[rowF][colF][0] != 0 and (rowF, colF) != (row, col):
+                    if grid[rowF][colF][0] > 90:
+                        listImpossibleNum.append(
+                            grid[rowF][colF][0]-90)
+                    else:
+                        listImpossibleNum.append(
+                            grid[rowF][colF][0])
+        listImpossibleNum = list(dict.fromkeys(listImpossibleNum))
+        listPossibleNum = []
+        for j in range(1, 10):
+            if j not in listImpossibleNum:
+                listPossibleNum.append(j)
+        return listImpossibleNum, listPossibleNum
+
+    def solver(self, grid):
+        gridToSolve = copy.deepcopy(grid)
         flagChanges = 1
+        loopcounter = 0
         while flagChanges != 0:
             flagChanges = 0
-            for row in range(len(self.gridCurr)):
-                for col in range(len(self.gridCurr[row])):
-                    if len(self.gridCurr[row][col]) > 1 or self.gridCurr[row][col][0] == 0:
-                        self.gridCurr[row][col] = []
-                        listTmp = []
-                        for colF in range(len(self.gridCurr[row])):
-                            if len(self.gridCurr[row][colF]) == 1 and self.gridCurr[row][colF][0] != 0:
-                                if self.gridCurr[row][colF][0] > 90:
-                                    listTmp.append(
-                                        self.gridCurr[row][colF][0]-90)
-                                else:
-                                    listTmp.append(self.gridCurr[row][colF][0])
-                        for rowF in range(len(self.gridCurr)):
-                            if len(self.gridCurr[rowF][col]) == 1 and self.gridCurr[rowF][col][0] != 0:
-                                if self.gridCurr[rowF][col][0] > 90:
-                                    listTmp.append(
-                                        self.gridCurr[rowF][col][0]-90)
-                                else:
-                                    listTmp.append(self.gridCurr[rowF][col][0])
-                        rowStartSqr = row // 3 * 3
-                        colStartSqr = col // 3 * 3
-                        for rowF in range(rowStartSqr, rowStartSqr+3):
-                            for colF in range(colStartSqr, colStartSqr+3):
-                                if len(self.gridCurr[rowF][colF]) == 1 and self.gridCurr[rowF][colF][0] != 0:
-                                    if self.gridCurr[rowF][colF][0] > 90:
-                                        listTmp.append(
-                                            self.gridCurr[rowF][colF][0]-90)
-                                    else:
-                                        listTmp.append(
-                                            self.gridCurr[rowF][colF][0])
-                        listTmp = list(dict.fromkeys(listTmp))
-                        for i in range(1, 10):
-                            if i not in listTmp:
-                                self.gridCurr[row][col].append(i)
-                        if len(self.gridCurr[row][col]) == 1:
+            for row in range(len(gridToSolve)):
+                for col in range(len(gridToSolve[row])):
+                    if len(gridToSolve[row][col]) > 1 or gridToSolve[row][col][0] == 0:
+                        gridToSolve[row][col] = self.impossPossNum(row, col, gridToSolve)[
+                            1]
+                        if len(gridToSolve[row][col]) == 1:
                             flagChanges = 1
-                        if len(self.gridCurr[row][col]) == 0:
-                            self.gridCurr[row][col].append(0)
+                            loopcounter += 1
+                        if len(gridToSolve[row][col]) == 0:
+                            gridToSolve[row][col].append(0)
             # if no number find, for every cell check if a possible value is
             # alone on its row, cell, square
             if flagChanges == 0:
-                for row in range(len(self.gridCurr)):
-                    for col in range(len(self.gridCurr[row])):
-                        if len(self.gridCurr[row][col]) > 1:
+                for row in range(len(gridToSolve)):
+                    for col in range(len(gridToSolve[row])):
+                        if len(gridToSolve[row][col]) > 1:
                             listTmp = []
-                            for colF in range(len(self.gridCurr[row])):
+                            for colF in range(len(gridToSolve[row])):
                                 if colF != col:
-                                    if self.gridCurr[row][colF][0] != 0:
-                                        if self.gridCurr[row][colF][0] > 90:
+                                    if gridToSolve[row][colF][0] != 0:
+                                        if gridToSolve[row][colF][0] > 90:
                                             listTmp.append(
-                                                self.gridCurr[row][colF][0]-90)
+                                                gridToSolve[row][colF][0]-90)
                                         else:
-                                            if len(self.gridCurr[row][colF]) == 1:
+                                            if len(gridToSolve[row][colF]) == 1:
                                                 listTmp.append(
-                                                    self.gridCurr[row][colF][0])
+                                                    gridToSolve[row][colF][0])
                                             else:
                                                 listTmp.extend(
-                                                    self.gridCurr[row][colF])
+                                                    gridToSolve[row][colF])
                             listTmp = list(dict.fromkeys(listTmp))
-                            listTmp2 = []
-                            for i in range(1, 10):
-                                if i not in listTmp:
-                                    listTmp2.append(i)
-                            if len(listTmp2) == 1:
-                                self.gridCurr[row][col] = listTmp2
+                            listTmp2 = [i for i in range(
+                                1, 10) if i not in listTmp]
+                            if len(listTmp2) == 1 and listTmp2[0] in gridToSolve[row][col]:
+                                gridToSolve[row][col] = listTmp2
                                 flagChanges = 1
+                                loopcounter += 1
                             listTmp = []
-                            for rowF in range(len(self.gridCurr)):
+                            for rowF in range(len(gridToSolve)):
                                 if rowF != row:
-                                    if self.gridCurr[rowF][col][0] != 0:
-                                        if self.gridCurr[rowF][col][0] > 90:
+                                    if gridToSolve[rowF][col][0] != 0:
+                                        if gridToSolve[rowF][col][0] > 90:
                                             listTmp.append(
-                                                self.gridCurr[rowF][col][0]-90)
+                                                gridToSolve[rowF][col][0]-90)
                                         else:
-                                            if len(self.gridCurr[rowF][col]) == 1:
+                                            if len(gridToSolve[rowF][col]) == 1:
                                                 listTmp.append(
-                                                    self.gridCurr[rowF][col][0])
+                                                    gridToSolve[rowF][col][0])
                                             else:
                                                 listTmp.extend(
-                                                    self.gridCurr[rowF][col])
+                                                    gridToSolve[rowF][col])
                             listTmp = list(dict.fromkeys(listTmp))
-                            listTmp2 = []
-                            for i in range(1, 10):
-                                if i not in listTmp:
-                                    listTmp2.append(i)
-                            if len(listTmp2) == 1:
-                                self.gridCurr[row][col] = listTmp2
+                            listTmp2 = [i for i in range(
+                                1, 10) if i not in listTmp]
+                            if len(listTmp2) == 1 and listTmp2[0] in gridToSolve[row][col]:
+                                gridToSolve[row][col] = listTmp2
                                 flagChanges = 1
+                                loopcounter += 1
                             listTmp = []
                             rowStartSqr = row // 3 * 3
                             colStartSqr = col // 3 * 3
                             for rowF in range(rowStartSqr, rowStartSqr+3):
                                 for colF in range(colStartSqr, colStartSqr+3):
                                     if (rowF, colF) != (row, col):
-                                        if self.gridCurr[rowF][colF][0] != 0:
-                                            if self.gridCurr[rowF][colF][0] > 90:
+                                        if gridToSolve[rowF][colF][0] != 0:
+                                            if gridToSolve[rowF][colF][0] > 90:
                                                 listTmp.append(
-                                                    self.gridCurr[rowF][colF][0]-90)
+                                                    gridToSolve[rowF][colF][0]-90)
                                             else:
-                                                if len(self.gridCurr[rowF][colF]) == 1:
+                                                if len(gridToSolve[rowF][colF]) == 1:
                                                     listTmp.append(
-                                                        self.gridCurr[rowF][colF][0])
+                                                        gridToSolve[rowF][colF][0])
                                                 else:
                                                     listTmp.extend(
-                                                        self.gridCurr[rowF][colF])
+                                                        gridToSolve[rowF][colF])
                             listTmp = list(dict.fromkeys(listTmp))
-                            listTmp2 = []
-                            for i in range(1, 10):
-                                if i not in listTmp:
-                                    listTmp2.append(i)
-                            if len(listTmp2) == 1:
-                                self.gridCurr[row][col] = listTmp2
+                            listTmp2 = [i for i in range(
+                                1, 10) if i not in listTmp]
+                            if len(listTmp2) == 1 and listTmp2[0] in gridToSolve[row][col]:
+                                gridToSolve[row][col] = listTmp2
                                 flagChanges = 1
+                                loopcounter += 1
+        return gridToSolve, loopcounter
 
+    def solverMsg(self):
+        tupleSolver = self.solver(self.gridCurr)
+        self.gridCurr = tupleSolver[0]
         self.initGrid()
         title = "Résolution..."
         if self.checker():
@@ -443,6 +483,52 @@ class Suctocude(Frame):
                 2 - self.popup.winfo_height()//2)
 
         self.popup.geometry(f"+{x}+{y}")
+
+    def generator(self):
+        maxloop = 0
+        gridToCreate = copy.deepcopy(sa.gridEmpty)
+        while maxloop < 100:
+            flagDoublePoss = 0
+            for row in range(len(gridToCreate)):
+                for col in range(len(gridToCreate[row])):
+                    if len(gridToCreate[row][col]) == 2 and flagDoublePoss == 0:
+                        gridToCreate[row][col] = [
+                            choice(gridToCreate[row][col])]
+                        flagDoublePoss = 1
+            if flagDoublePoss != 1:
+                row = randint(0, 8)
+                col = randint(0, 8)
+                if len(gridToCreate[row][col]) > 1:
+                    listPossibleNum = self.impossPossNum(
+                        row, col, gridToCreate)[1]
+                    if len(listPossibleNum) > 0:
+                        num = choice(listPossibleNum)
+                        gridToCreate[row][col] = [num]
+            gridToCreate = self.solver(gridToCreate)[0]
+            zeroCell = 0
+            for row in range(len(gridToCreate)):
+                for col in range(len(gridToCreate[row])):
+                    if len(gridToCreate[row][col]) == 1 and gridToCreate[row][col][0] == 0:
+                        zeroCell += 1
+            if zeroCell == 0:
+                self.gridCurr = gridToCreate
+            else:
+                gridToCreate = copy.deepcopy(self.gridCurr)
+            maxloop += 1
+            if self.checker(gridToCreate):
+                return gridToCreate
+        if maxloop == 100:
+            return sa.gridEmpty
+
+    def generate(self):
+        ntry = 0
+        while ntry < 10:
+            self.gridCurr = self.generator()
+            if self.checker():
+                break
+            ntry += 1
+        if ntry == 10:
+            self.gridCurr = sa.gridEmpty
 
 
 if __name__ == '__main__':
